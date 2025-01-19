@@ -1,4 +1,11 @@
-const generateToken = async (
+/**
+ * Get client access token from keycloak
+ * @param clientId - The client ID
+ * @param clientSecret - The client secret
+ * @param keycloakIssuer - The keycloak issuer
+ * @returns The access token
+ */
+const getClientAccessToken = async (
 	clientId: string,
 	clientSecret: string,
 	keycloakIssuer: string
@@ -36,28 +43,40 @@ const generateToken = async (
 	}
 };
 
-const tokenExchange = async ({
+/**
+ * Get impersonate access token from keycloak
+ * @param clientId - The client ID
+ * @param clientSecret - The client secret
+ * @param requestedSubject - The requested subject
+ * @param keycloakIssuer - The keycloak issuer
+ * @returns The access token
+ *
+ * @note This function will create new session for the requested subject in keycloak
+ * The returned access token is supposed to be used for impersonate auth.js session
+ */
+const getImpersonateAccessToken = async ({
 	clientId,
 	clientSecret,
-	issuerId,
 	requestedSubject,
 	keycloakIssuer,
 }: {
 	clientId: string;
 	clientSecret: string;
-	issuerId: string;
 	requestedSubject: string;
 	keycloakIssuer: string;
 }) => {
 	try {
-		const results = await generateToken(clientId, clientSecret, keycloakIssuer);
+		const results = await getClientAccessToken(
+			clientId,
+			clientSecret,
+			keycloakIssuer
+		);
 
 		if (!results.success) {
 			throw new Error(results.message);
 		}
 
 		const grantType = 'urn:ietf:params:oauth:grant-type:token-exchange';
-		const subjectTokenType = 'urn:ietf:params:oauth:token-type:id_token';
 
 		const response = await fetch(
 			`${keycloakIssuer}/protocol/openid-connect/token`,
@@ -69,20 +88,17 @@ const tokenExchange = async ({
 					client_secret: clientSecret,
 					grant_type: grantType,
 					subject_token: results.accessToken!,
-					subject_issuer: issuerId,
-					subject_token_type: subjectTokenType,
 					requested_subject: requestedSubject,
-					scope: 'openid',
 				}).toString(),
 			}
 		);
 
 		if (!response.ok) {
-			throw new Error('Failed to exchange token');
+			throw new Error('Failed to get impersonate token');
 		}
 
 		const data = await response.json();
-		return data.access_token;
+		return data.access_token as string;
 	} catch (error) {
 		return {
 			success: false,
@@ -91,21 +107,4 @@ const tokenExchange = async ({
 	}
 };
 
-const getSession = async (accessToken: string, keycloakIssuer: string) => {
-	const response = await fetch(
-		`${keycloakIssuer}/protocol/openid-connect/userinfo`,
-		{
-			headers: {
-				Authorization: `Bearer ${accessToken}`,
-			},
-		}
-	);
-
-	if (!response.ok) {
-		throw new Error('Failed to get session');
-	}
-
-	return response.json();
-};
-
-export { generateToken, tokenExchange, getSession };
+export { getClientAccessToken, getImpersonateAccessToken };

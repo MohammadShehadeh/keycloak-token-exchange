@@ -1,5 +1,5 @@
 import { serve } from 'https://deno.land/std@0.207.0/http/server.ts';
-import { getSession, tokenExchange } from './keycloak.ts';
+import { getClientAccessToken, getImpersonateAccessToken } from './keycloak.ts';
 
 const requestedSubject = Deno.env.get('KEYCLOAK_REQUESTED_SUBJECT');
 const keycloakIssuer = Deno.env.get('KEYCLOAK_ISSUER');
@@ -9,25 +9,36 @@ const realmA = Deno.env.get('KEYCLOAK_A_REALM');
 const clientIdA = Deno.env.get('KEYCLOAK_A_CLIENT_ID');
 const clientSecretA = Deno.env.get('KEYCLOAK_A_CLIENT_SECRET');
 
-
 async function handler(req: Request): Promise<Response> {
 	const url = new URL(req.url);
 
 	// Handle different endpoints
 	switch (url.pathname) {
-		case '/session':
-			return getSession({
-				accessToken: req.headers.get('Authorization')?.split(' ')[1],
-				keycloakIssuer: keycloakIssuer,
-			});
-		case '/token-exchange':
-			return tokenExchange({
-				clientId: clientIdA,
-				clientSecret: clientSecretA,
-				issuerId: realmA,
-				requestedSubject: requestedSubject,
-				keycloakIssuer: keycloakIssuer,
-			});
+		case '/client-access-token':
+			return new Response(
+				JSON.stringify(
+					await getClientAccessToken(clientIdA, clientSecretA, keycloakIssuer)
+				),
+				{
+					status: 200,
+					headers: { 'Content-Type': 'application/json' },
+				}
+			);
+		case '/impersonate-access-token':
+			return new Response(
+				JSON.stringify(
+					await getImpersonateAccessToken({
+						clientId: clientIdA,
+						clientSecret: clientSecretA,
+						requestedSubject: requestedSubject,
+						keycloakIssuer: keycloakIssuer,
+					})
+				),
+				{
+					status: 200,
+					headers: { 'Content-Type': 'application/json' },
+				}
+			);
 		default:
 			return new Response(JSON.stringify({ error: 'Not Found' }), {
 				status: 404,
