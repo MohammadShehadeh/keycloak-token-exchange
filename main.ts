@@ -3,11 +3,8 @@ import { getClientAccessToken, getImpersonateAccessToken } from './keycloak.ts';
 
 const requestedSubject = Deno.env.get('KEYCLOAK_REQUESTED_SUBJECT');
 const keycloakIssuer = Deno.env.get('KEYCLOAK_ISSUER');
-
-// Realm A - Client A
-const realmA = Deno.env.get('KEYCLOAK_A_REALM');
-const clientIdA = Deno.env.get('KEYCLOAK_A_CLIENT_ID');
-const clientSecretA = Deno.env.get('KEYCLOAK_A_CLIENT_SECRET');
+const clientId = Deno.env.get('KEYCLOAK_CLIENT_ID');
+const clientSecret = Deno.env.get('KEYCLOAK_CLIENT_SECRET');
 
 async function handler(req: Request): Promise<Response> {
 	const url = new URL(req.url);
@@ -17,7 +14,7 @@ async function handler(req: Request): Promise<Response> {
 		case '/client-access-token':
 			return new Response(
 				JSON.stringify(
-					await getClientAccessToken(clientIdA, clientSecretA, keycloakIssuer)
+					await getClientAccessToken(clientId, clientSecret, keycloakIssuer)
 				),
 				{
 					status: 200,
@@ -28,10 +25,10 @@ async function handler(req: Request): Promise<Response> {
 			return new Response(
 				JSON.stringify(
 					await getImpersonateAccessToken({
-						clientId: clientIdA,
-						clientSecret: clientSecretA,
-						requestedSubject: requestedSubject,
-						keycloakIssuer: keycloakIssuer,
+						clientId,
+						clientSecret,
+						requestedSubject,
+						keycloakIssuer,
 					})
 				),
 				{
